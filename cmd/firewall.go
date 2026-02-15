@@ -6,7 +6,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
-	"github.com/zhengda-lu/macdog/internal/firewall"
+	"github.com/lu-zhengda/macdog/internal/firewall"
 )
 
 var firewallCmd = &cobra.Command{

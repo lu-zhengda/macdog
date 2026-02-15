@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/zhengda-lu/macdog/internal/audit"
-	"github.com/zhengda-lu/macdog/internal/harden"
+	"github.com/lu-zhengda/macdog/internal/audit"
+	"github.com/lu-zhengda/macdog/internal/harden"
 )
 
 func TestNew(t *testing.T) {

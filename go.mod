@@ -1,4 +1,4 @@
-module github.com/zhengda-lu/macdog
+module github.com/lu-zhengda/macdog
 
 go 1.25.0
 

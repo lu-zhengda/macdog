@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/zhengda-lu/macdog/cmd"
+	"github.com/lu-zhengda/macdog/cmd"
 )
 
 func main() {

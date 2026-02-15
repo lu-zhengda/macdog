@@ -6,7 +6,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
-	"github.com/zhengda-lu/macdog/internal/harden"
+	"github.com/lu-zhengda/macdog/internal/harden"
 )
 
 var dryRun bool

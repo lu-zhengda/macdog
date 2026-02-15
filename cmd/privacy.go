@@ -6,7 +6,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
-	"github.com/zhengda-lu/macdog/internal/privacy"
+	"github.com/lu-zhengda/macdog/internal/privacy"
 )
 
 var privacyCmd = &cobra.Command{

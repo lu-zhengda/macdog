@@ -6,7 +6,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
-	"github.com/zhengda-lu/macdog/internal/login"
+	"github.com/lu-zhengda/macdog/internal/login"
 )
 
 var loginCmd = &cobra.Command{

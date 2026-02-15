@@ -6,11 +6,11 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/zhengda-lu/macdog/internal/audit"
-	"github.com/zhengda-lu/macdog/internal/firewall"
-	"github.com/zhengda-lu/macdog/internal/harden"
-	"github.com/zhengda-lu/macdog/internal/login"
-	"github.com/zhengda-lu/macdog/internal/privacy"
+	"github.com/lu-zhengda/macdog/internal/audit"
+	"github.com/lu-zhengda/macdog/internal/firewall"
+	"github.com/lu-zhengda/macdog/internal/harden"
+	"github.com/lu-zhengda/macdog/internal/login"
+	"github.com/lu-zhengda/macdog/internal/privacy"
 )
 
 // Tab indices.
