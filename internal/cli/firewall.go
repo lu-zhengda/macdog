@@ -101,12 +101,55 @@ var firewallBlockCmd = &cobra.Command{
 	},
 }
 
+var firewallExportCmd = &cobra.Command{
+	Use:   "export [file]",
+	Short: "Export firewall rules to a JSON file",
+	Long:  "Export the current firewall status and rules to a JSON file. If no file is specified, output to stdout.",
+	Args:  cobra.MaximumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		var path string
+		if len(args) == 1 {
+			path = args[0]
+		}
+
+		data, err := firewall.ExportRules(path)
+		if err != nil {
+			return fmt.Errorf("failed to export firewall rules: %w", err)
+		}
+
+		if data != nil {
+			// No file specified — write to stdout.
+			os.Stdout.Write(data)
+			return nil
+		}
+
+		fmt.Printf("Firewall rules exported to %s\n", green(path))
+		return nil
+	},
+}
+
+var firewallImportCmd = &cobra.Command{
+	Use:   "import <file>",
+	Short: "Import firewall rules from a JSON file",
+	Long:  "Import firewall status and rules from a JSON file. Requires sudo.",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := firewall.ImportRules(args[0]); err != nil {
+			return fmt.Errorf("failed to import firewall rules: %w", err)
+		}
+		fmt.Printf("Firewall rules imported from %s\n", green(args[0]))
+		return nil
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(firewallCmd)
 	firewallCmd.AddCommand(firewallEnableCmd)
 	firewallCmd.AddCommand(firewallDisableCmd)
 	firewallCmd.AddCommand(firewallAllowCmd)
 	firewallCmd.AddCommand(firewallBlockCmd)
+	firewallCmd.AddCommand(firewallExportCmd)
+	firewallCmd.AddCommand(firewallImportCmd)
 }
 
 // colorBool formats a boolean as a colored on/off string.

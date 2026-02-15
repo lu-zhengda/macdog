@@ -1,6 +1,9 @@
 package privacy
 
 import (
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -151,6 +154,86 @@ func TestAppNameFromBundleID(t *testing.T) {
 				t.Errorf("appNameFromBundleID(%q) = %q, want %q", tt.bundleID, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestExportPermissionsToStdout(t *testing.T) {
+	// ExportPermissions may fail without Full Disk Access.
+	data, err := ExportPermissions("")
+	if err != nil {
+		t.Logf("ExportPermissions() error (expected without Full Disk Access): %v", err)
+		return
+	}
+	if data == nil {
+		t.Fatal("ExportPermissions() returned nil data for stdout output")
+	}
+
+	// Verify it's valid JSON with expected structure.
+	var snapshot Snapshot
+	if err := json.Unmarshal(data, &snapshot); err != nil {
+		t.Fatalf("ExportPermissions() produced invalid JSON: %v", err)
+	}
+	if snapshot.Timestamp == "" {
+		t.Error("snapshot timestamp is empty")
+	}
+}
+
+func TestExportPermissionsToFile(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "privacy.json")
+
+	data, err := ExportPermissions(path)
+	if err != nil {
+		t.Logf("ExportPermissions() error (expected without Full Disk Access): %v", err)
+		return
+	}
+	if data != nil {
+		t.Error("ExportPermissions() should return nil data when writing to file")
+	}
+
+	// Verify file was created and contains valid JSON.
+	contents, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("failed to read exported file: %v", err)
+	}
+
+	var snapshot Snapshot
+	if err := json.Unmarshal(contents, &snapshot); err != nil {
+		t.Fatalf("exported file contains invalid JSON: %v", err)
+	}
+}
+
+func TestSnapshotStructure(t *testing.T) {
+	snapshot := Snapshot{
+		Timestamp: "2026-02-15T00:00:00Z",
+		Permissions: []Permission{
+			{
+				Service:  "Camera",
+				App:      "Terminal",
+				BundleID: "com.apple.Terminal",
+				Allowed:  true,
+			},
+		},
+	}
+
+	data, err := json.Marshal(snapshot)
+	if err != nil {
+		t.Fatalf("failed to marshal snapshot: %v", err)
+	}
+
+	var decoded Snapshot
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatalf("failed to unmarshal snapshot: %v", err)
+	}
+
+	if decoded.Timestamp != snapshot.Timestamp {
+		t.Errorf("timestamp = %q, want %q", decoded.Timestamp, snapshot.Timestamp)
+	}
+	if len(decoded.Permissions) != 1 {
+		t.Fatalf("permissions count = %d, want 1", len(decoded.Permissions))
+	}
+	if decoded.Permissions[0].Service != "Camera" {
+		t.Errorf("service = %q, want %q", decoded.Permissions[0].Service, "Camera")
 	}
 }
 

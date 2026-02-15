@@ -1,6 +1,7 @@
 package audit
 
 import (
+	"fmt"
 	"os/exec"
 	"strings"
 )
@@ -149,6 +150,125 @@ func parseRemoteLogin(output string) string {
 	default:
 		return "unknown"
 	}
+}
+
+// FixResult describes a single fix that was applied (or skipped).
+type FixResult struct {
+	Check   string `json:"check"`
+	Status  string `json:"status"`  // "fixed", "skipped", "failed"
+	Reason  string `json:"reason"`  // why it was skipped or error message
+	Before  string `json:"before"`  // value before fix
+	After   string `json:"after"`   // value after fix (empty if skipped/failed)
+}
+
+// FixReport holds the results of an auto-fix run.
+type FixReport struct {
+	Results []FixResult `json:"results"`
+	Before  Report      `json:"before"`
+	After   Report      `json:"after"`
+}
+
+const socketFilterFW = "/usr/libexec/ApplicationFirewall/socketfilterfw"
+
+// Fix runs a full audit, then auto-fixes checks that are safe to fix
+// programmatically. It re-runs the audit after applying fixes and returns
+// a FixReport describing what was changed.
+func Fix() (*FixReport, error) {
+	before, err := Full()
+	if err != nil {
+		return nil, fmt.Errorf("failed to run initial audit: %w", err)
+	}
+
+	fr := &FixReport{Before: *before}
+
+	// SIP: cannot be changed programmatically (requires Recovery Mode).
+	if before.SIP != "enabled" {
+		fr.Results = append(fr.Results, FixResult{
+			Check:  "System Integrity Protection",
+			Status: "skipped",
+			Reason: "requires reboot into Recovery Mode",
+			Before: before.SIP,
+		})
+	}
+
+	// Firewall: safe to enable via socketfilterfw.
+	if before.Firewall != "on" {
+		out, fErr := exec.Command("sudo", socketFilterFW, "--setglobalstate", "on").CombinedOutput()
+		if fErr != nil {
+			fr.Results = append(fr.Results, FixResult{
+				Check:  "Firewall",
+				Status: "failed",
+				Reason: fmt.Sprintf("requires sudo: %s", strings.TrimSpace(string(out))),
+				Before: before.Firewall,
+			})
+		} else {
+			fr.Results = append(fr.Results, FixResult{
+				Check:  "Firewall",
+				Status: "fixed",
+				Before: before.Firewall,
+				After:  "on",
+			})
+		}
+	}
+
+	// FileVault: cannot be enabled non-interactively (requires password/recovery key setup).
+	if before.FileVault != "on" {
+		fr.Results = append(fr.Results, FixResult{
+			Check:  "FileVault",
+			Status: "skipped",
+			Reason: "requires interactive setup with recovery key",
+			Before: before.FileVault,
+		})
+	}
+
+	// Gatekeeper: safe to enable via spctl.
+	if before.Gatekeeper != "enabled" {
+		out, gErr := exec.Command("sudo", "spctl", "--master-enable").CombinedOutput()
+		if gErr != nil {
+			fr.Results = append(fr.Results, FixResult{
+				Check:  "Gatekeeper",
+				Status: "failed",
+				Reason: fmt.Sprintf("requires sudo: %s", strings.TrimSpace(string(out))),
+				Before: before.Gatekeeper,
+			})
+		} else {
+			fr.Results = append(fr.Results, FixResult{
+				Check:  "Gatekeeper",
+				Status: "fixed",
+				Before: before.Gatekeeper,
+				After:  "enabled",
+			})
+		}
+	}
+
+	// Remote Login: safe to disable via systemsetup.
+	if before.RemoteLogin != "off" {
+		out, rErr := exec.Command("sudo", "systemsetup", "-setremotelogin", "off").CombinedOutput()
+		if rErr != nil {
+			fr.Results = append(fr.Results, FixResult{
+				Check:  "Remote Login",
+				Status: "failed",
+				Reason: fmt.Sprintf("requires sudo: %s", strings.TrimSpace(string(out))),
+				Before: before.RemoteLogin,
+			})
+		} else {
+			fr.Results = append(fr.Results, FixResult{
+				Check:  "Remote Login",
+				Status: "fixed",
+				Before: before.RemoteLogin,
+				After:  "off",
+			})
+		}
+	}
+
+	// Re-audit after fixes.
+	after, err := Full()
+	if err != nil {
+		return nil, fmt.Errorf("failed to run post-fix audit: %w", err)
+	}
+	fr.After = *after
+
+	return fr, nil
 }
 
 // probeRemoteLoginFallback checks remote login state by looking for sshd via launchctl.
