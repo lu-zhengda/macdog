@@ -23,6 +23,10 @@ func Full() (*Report, error) {
 	r.FileVault = runAndParse("fdesetup", []string{"status"}, parseFileVault)
 	r.Gatekeeper = runAndParse("spctl", []string{"--status"}, parseGatekeeper)
 	r.RemoteLogin = runAndParse("systemsetup", []string{"-getremotelogin"}, parseRemoteLogin)
+	// Fallback: if systemsetup requires admin, check via launchctl.
+	if r.RemoteLogin == "unknown" {
+		r.RemoteLogin = probeRemoteLoginFallback()
+	}
 
 	return r, nil
 }
@@ -145,4 +149,16 @@ func parseRemoteLogin(output string) string {
 	default:
 		return "unknown"
 	}
+}
+
+// probeRemoteLoginFallback checks remote login state by looking for sshd via launchctl.
+func probeRemoteLoginFallback() string {
+	out, err := exec.Command("launchctl", "list").CombinedOutput()
+	if err != nil {
+		return "unknown"
+	}
+	if strings.Contains(string(out), "com.openssh.sshd") {
+		return "on"
+	}
+	return "off"
 }
