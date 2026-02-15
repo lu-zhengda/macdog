@@ -51,14 +51,14 @@ func ValidEventTypes() []string {
 }
 
 // compactLogRe matches the compact log format from `log show --style compact`.
-// Example line: 2024-01-15 10:30:45.123456-0800  0x1234  Default  com.apple.Authorization  processName  message here
+// Example line: 2024-01-15 10:30:45.123 Df loginwindow[123:1a2b] [com.apple.Authorization:authd] User authenticated successfully
 var compactLogRe = regexp.MustCompile(
-	`^(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\.\d+[+-]\d{4})\s+` + // timestamp
-		`0x[0-9a-f]+\s+` + // thread ID
-		`\w+\s+` + // log level (Default, Info, Debug, Error, etc.)
-		`[\w.]+\s+` + // subsystem
-		`(\S+)\s+` + // process name
-		`(.+)$`, // message
+	`^(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\.\d+(?:[+-]\d{4})?)\s+` + // timestamp (timezone optional)
+		`\w{1,3}\s+` + // log type code (Df, E, I, D, etc.)
+		`(\w+)\[` + // process name (capture group 2)
+		`[^\]]+\]\s+` + // [PID:TID]
+		`\[[^\]]+\]\s+` + // [subsystem:category]
+		`(.+)$`, // message (capture group 3)
 )
 
 // installLogRe matches install.log format.
@@ -242,7 +242,7 @@ func assignSeverity(eventType, message string) string {
 			return "critical"
 		case strings.Contains(lower, "sudo"):
 			return "warning"
-		case strings.Contains(lower, "authenticated") || strings.Contains(lower, "success"):
+		case strings.Contains(lower, "authenticated") || strings.Contains(lower, "succeeded") || strings.Contains(lower, "success"):
 			return "info"
 		default:
 			return "info"
@@ -383,11 +383,13 @@ func durationCutoff(duration string) (time.Time, error) {
 
 // normalizeTimestamp converts various log timestamp formats to a consistent format.
 func normalizeTimestamp(raw string) string {
-	// Try compact log format: "2024-01-15 10:30:45.123456-0800"
 	layouts := []string{
 		"2006-01-02 15:04:05.000000-0700",
 		"2006-01-02 15:04:05-0700",
 		"2006-01-02 15:04:05.000000+0000",
+		"2006-01-02 15:04:05.000000",
+		"2006-01-02 15:04:05.000",
+		"2006-01-02 15:04:05",
 	}
 
 	for _, layout := range layouts {
