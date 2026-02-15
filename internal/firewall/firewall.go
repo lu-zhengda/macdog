@@ -1,7 +1,9 @@
 package firewall
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -106,6 +108,93 @@ func ListRules() ([]Rule, error) {
 		return nil, fmt.Errorf("failed to list firewall rules: %w", err)
 	}
 	return parseListApps(string(out)), nil
+}
+
+// ExportRules marshals the current firewall status to JSON.
+// If path is empty, returns the JSON bytes for stdout output.
+// If path is provided, writes to that file.
+func ExportRules(path string) ([]byte, error) {
+	status, err := GetStatus()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get firewall status: %w", err)
+	}
+
+	data, err := json.MarshalIndent(status, "", "  ")
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal firewall status: %w", err)
+	}
+	data = append(data, '\n')
+
+	if path == "" {
+		return data, nil
+	}
+
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		return nil, fmt.Errorf("failed to write firewall export to %s: %w", path, err)
+	}
+
+	return nil, nil
+}
+
+// ImportRules reads a firewall status JSON file and applies the rules.
+// It enables/disables the firewall and stealth mode, then adds or blocks
+// each application rule.
+func ImportRules(path string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("failed to read firewall import from %s: %w", path, err)
+	}
+
+	var status Status
+	if err := json.Unmarshal(data, &status); err != nil {
+		return fmt.Errorf("failed to parse firewall import: %w", err)
+	}
+
+	// Enable or disable firewall.
+	if status.Enabled {
+		if err := Enable(); err != nil {
+			return fmt.Errorf("failed to enable firewall: %w", err)
+		}
+	} else {
+		if err := Disable(); err != nil {
+			return fmt.Errorf("failed to disable firewall: %w", err)
+		}
+	}
+
+	// Apply stealth mode.
+	stealthState := "off"
+	if status.StealthMode {
+		stealthState = "on"
+	}
+	out, err := exec.Command("sudo", socketFilterFW, "--setstealthmode", stealthState).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to set stealth mode: %s: %w", strings.TrimSpace(string(out)), err)
+	}
+
+	// Apply block-all mode.
+	blockState := "off"
+	if status.BlockAll {
+		blockState = "on"
+	}
+	out, err = exec.Command("sudo", socketFilterFW, "--setblockall", blockState).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to set block-all mode: %s: %w", strings.TrimSpace(string(out)), err)
+	}
+
+	// Apply application rules.
+	for _, r := range status.Rules {
+		if r.Allowed {
+			if err := AllowApp(r.Path); err != nil {
+				return fmt.Errorf("failed to allow app %q: %w", r.Path, err)
+			}
+		} else {
+			if err := BlockApp(r.Path); err != nil {
+				return fmt.Errorf("failed to block app %q: %w", r.Path, err)
+			}
+		}
+	}
+
+	return nil
 }
 
 // parseGlobalState parses the output of --getglobalstate.

@@ -300,6 +300,87 @@ func TestParseRemoteLogin(t *testing.T) {
 	}
 }
 
+func TestFixResultTypes(t *testing.T) {
+	// Verify FixResult struct fields are correctly typed.
+	r := FixResult{
+		Check:  "Firewall",
+		Status: "fixed",
+		Reason: "",
+		Before: "off",
+		After:  "on",
+	}
+
+	if r.Check != "Firewall" {
+		t.Errorf("Check = %q, want %q", r.Check, "Firewall")
+	}
+	if r.Status != "fixed" {
+		t.Errorf("Status = %q, want %q", r.Status, "fixed")
+	}
+	if r.Before != "off" {
+		t.Errorf("Before = %q, want %q", r.Before, "off")
+	}
+	if r.After != "on" {
+		t.Errorf("After = %q, want %q", r.After, "on")
+	}
+}
+
+func TestFixReportTypes(t *testing.T) {
+	// Verify FixReport struct embeds Before/After correctly.
+	fr := FixReport{
+		Before: Report{
+			SIP:         "enabled",
+			Firewall:    "off",
+			FileVault:   "on",
+			Gatekeeper:  "enabled",
+			RemoteLogin: "off",
+		},
+		After: Report{
+			SIP:         "enabled",
+			Firewall:    "on",
+			FileVault:   "on",
+			Gatekeeper:  "enabled",
+			RemoteLogin: "off",
+		},
+		Results: []FixResult{
+			{Check: "Firewall", Status: "fixed", Before: "off", After: "on"},
+		},
+	}
+
+	if fr.Before.Firewall != "off" {
+		t.Errorf("Before.Firewall = %q, want %q", fr.Before.Firewall, "off")
+	}
+	if fr.After.Firewall != "on" {
+		t.Errorf("After.Firewall = %q, want %q", fr.After.Firewall, "on")
+	}
+	if len(fr.Results) != 1 {
+		t.Errorf("len(Results) = %d, want 1", len(fr.Results))
+	}
+	if fr.After.Score() != 100 {
+		t.Errorf("After.Score() = %d, want 100", fr.After.Score())
+	}
+}
+
+func TestFix(t *testing.T) {
+	// Fix() runs actual system commands including sudo.
+	// In test context without sudo, the fix operations will fail but the
+	// function should still return a valid FixReport.
+	fixReport, err := Fix()
+	if err != nil {
+		t.Fatalf("Fix() returned error: %v", err)
+	}
+	if fixReport == nil {
+		t.Fatal("Fix() returned nil report")
+	}
+
+	// Before and After reports should be populated.
+	if fixReport.Before.SIP == "" {
+		t.Error("Before.SIP is empty")
+	}
+	if fixReport.After.SIP == "" {
+		t.Error("After.SIP is empty")
+	}
+}
+
 func TestFull(t *testing.T) {
 	// Full() runs actual system commands; just verify it returns without panic.
 	// The actual values depend on the system state.

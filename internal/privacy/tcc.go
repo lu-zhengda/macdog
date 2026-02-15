@@ -1,11 +1,13 @@
 package privacy
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // Permission represents a TCC privacy permission entry.
@@ -72,6 +74,43 @@ func RevokePermission(service, bundleID string) error {
 			service, bundleID, strings.TrimSpace(string(out)), err)
 	}
 	return nil
+}
+
+// Snapshot represents a point-in-time capture of TCC permissions.
+type Snapshot struct {
+	Timestamp   string       `json:"timestamp"`
+	Permissions []Permission `json:"permissions"`
+}
+
+// ExportPermissions captures the current TCC permissions as a JSON snapshot.
+// If path is empty, returns the JSON bytes for stdout output.
+// If path is provided, writes to that file.
+func ExportPermissions(path string) ([]byte, error) {
+	perms, err := ListPermissions()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list permissions: %w", err)
+	}
+
+	snapshot := Snapshot{
+		Timestamp:   time.Now().UTC().Format(time.RFC3339),
+		Permissions: perms,
+	}
+
+	data, err := json.MarshalIndent(snapshot, "", "  ")
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal permissions: %w", err)
+	}
+	data = append(data, '\n')
+
+	if path == "" {
+		return data, nil
+	}
+
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		return nil, fmt.Errorf("failed to write privacy export to %s: %w", path, err)
+	}
+
+	return nil, nil
 }
 
 // ListServices returns a list of known TCC service names.

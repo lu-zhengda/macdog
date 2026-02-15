@@ -1,6 +1,9 @@
 package firewall
 
 import (
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -161,6 +164,70 @@ func TestListRules(t *testing.T) {
 	}
 	// Rules may be empty on a clean system, that's OK.
 	_ = rules
+}
+
+func TestExportRulesToStdout(t *testing.T) {
+	// Export to stdout (no file path).
+	data, err := ExportRules("")
+	if err != nil {
+		t.Fatalf("ExportRules() error: %v", err)
+	}
+	if data == nil {
+		t.Fatal("ExportRules() returned nil data for stdout output")
+	}
+
+	// Verify it's valid JSON.
+	var status Status
+	if err := json.Unmarshal(data, &status); err != nil {
+		t.Fatalf("ExportRules() produced invalid JSON: %v", err)
+	}
+}
+
+func TestExportRulesToFile(t *testing.T) {
+	// Export to a temp file.
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "firewall.json")
+
+	data, err := ExportRules(path)
+	if err != nil {
+		t.Fatalf("ExportRules(%q) error: %v", path, err)
+	}
+	if data != nil {
+		t.Error("ExportRules() should return nil data when writing to file")
+	}
+
+	// Verify file was created and contains valid JSON.
+	contents, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("failed to read exported file: %v", err)
+	}
+
+	var status Status
+	if err := json.Unmarshal(contents, &status); err != nil {
+		t.Fatalf("exported file contains invalid JSON: %v", err)
+	}
+}
+
+func TestImportRulesInvalidFile(t *testing.T) {
+	// Import from a non-existent file should fail.
+	err := ImportRules("/nonexistent/path/firewall.json")
+	if err == nil {
+		t.Error("ImportRules() should fail for non-existent file")
+	}
+}
+
+func TestImportRulesInvalidJSON(t *testing.T) {
+	// Import invalid JSON should fail.
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "invalid.json")
+	if err := os.WriteFile(path, []byte("not json"), 0o644); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	err := ImportRules(path)
+	if err == nil {
+		t.Error("ImportRules() should fail for invalid JSON")
+	}
 }
 
 func TestEnableDisableRequiresSudo(t *testing.T) {

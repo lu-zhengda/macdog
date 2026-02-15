@@ -63,7 +63,35 @@ var privacyRevokeCmd = &cobra.Command{
 	},
 }
 
+var privacyExportCmd = &cobra.Command{
+	Use:   "export [file]",
+	Short: "Export TCC permissions snapshot to a JSON file",
+	Long:  "Export the current TCC permissions to a JSON file for audit trail. This is read-only. If no file is specified, output to stdout.",
+	Args:  cobra.MaximumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		var path string
+		if len(args) == 1 {
+			path = args[0]
+		}
+
+		data, err := privacy.ExportPermissions(path)
+		if err != nil {
+			return fmt.Errorf("failed to export privacy permissions: %w", err)
+		}
+
+		if data != nil {
+			// No file specified — write to stdout.
+			os.Stdout.Write(data)
+			return nil
+		}
+
+		fmt.Printf("Privacy permissions exported to %s\n", green(path))
+		return nil
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(privacyCmd)
 	privacyCmd.AddCommand(privacyRevokeCmd)
+	privacyCmd.AddCommand(privacyExportCmd)
 }
