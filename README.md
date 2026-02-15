@@ -1,80 +1,49 @@
 # macdog
 
-macOS security and privacy suite — audit your security posture, manage firewall rules, review privacy permissions, and harden your system.
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Platform: macOS](https://img.shields.io/badge/Platform-macOS-lightgrey.svg)](https://github.com/lu-zhengda/macdog)
+[![Homebrew](https://img.shields.io/badge/Homebrew-lu--zhengda/tap-orange.svg)](https://github.com/lu-zhengda/homebrew-tap)
+
+macOS security & privacy suite — audit your security posture, manage firewall rules, review privacy permissions, and harden your system.
 
 ## Install
 
-### Homebrew
-
 ```bash
-brew install lu-zhengda/tap/macdog
+brew tap lu-zhengda/tap
+brew install macdog
 ```
 
-### From Source
+## Usage
 
-```bash
-go install github.com/zhengda-lu/macdog@latest
 ```
+$ macdog audit
+Security Grade: B (75/100)
 
-### Binary
-
-Download from [Releases](https://github.com/lu-zhengda/macdog/releases).
-
-## Quick Start
-
-```bash
-# Launch the interactive TUI dashboard
-macdog
-
-# Run a security audit
-macdog audit
-
-# Check firewall status
-macdog firewall
-
-# Apply hardening recommendations (dry-run first)
-macdog harden --dry-run
+CHECK                        STATUS
+-----                        ------
+System Integrity Protection  enabled
+Firewall                     off
+FileVault                    on
+Gatekeeper                   enabled
+Remote Login                 off
 ```
 
 ## Commands
 
 | Command | Description |
 |---------|-------------|
-| `macdog` | Launch interactive TUI dashboard |
-| `macdog audit` | Full security audit with letter grade (A-F) |
-| `macdog firewall` | Show firewall status and application rules |
-| `macdog firewall enable` | Enable the application firewall (sudo) |
-| `macdog firewall disable` | Disable the application firewall (sudo) |
-| `macdog firewall allow <path>` | Allow an app through the firewall (sudo) |
-| `macdog firewall block <path>` | Block an app in the firewall (sudo) |
-| `macdog privacy` | List TCC privacy permissions |
-| `macdog privacy revoke <service> <bundle-id>` | Revoke a TCC permission |
-| `macdog login` | List login items and launch agents |
-| `macdog login remove <name>` | Remove a login item or disable a launch agent |
-| `macdog harden` | Apply security hardening preset |
-| `macdog harden --dry-run` | Preview hardening changes without applying |
-| `macdog version` | Show version |
-
-## TUI Dashboard
-
-Launch `macdog` without arguments to open the interactive dashboard:
-
-- **Audit tab**: Security grade (A-F) with big ASCII art letter, check status for SIP, Firewall, FileVault, Gatekeeper, and Remote Login
-- **Firewall tab**: Firewall state, stealth mode, block-all, and application rules
-- **Privacy tab**: TCC permissions (Camera, Microphone, Contacts, etc.) per app
-- **Login Items tab**: Login items and launch agents with their type
-- **Harden tab**: Recommended hardening actions with current vs. desired state
-
-### Keys
-
-| Key | Action |
-|-----|--------|
-| `Tab` / `l` | Next tab |
-| `Shift+Tab` / `h` | Previous tab |
-| `j` / `Down` | Move cursor down |
-| `k` / `Up` | Move cursor up |
-| `Enter` | Apply action (Harden tab) |
-| `q` | Quit |
+| `audit` | Full security audit with letter grade (A-F) |
+| `firewall` | Show firewall status and application rules |
+| `firewall enable` | Enable the application firewall (sudo) |
+| `firewall disable` | Disable the application firewall (sudo) |
+| `firewall allow <path>` | Allow an app through the firewall (sudo) |
+| `firewall block <path>` | Block an app in the firewall (sudo) |
+| `privacy` | List TCC privacy permissions |
+| `privacy revoke <service> <bundle-id>` | Revoke a TCC permission |
+| `login` | List login items and launch agents |
+| `login remove <name>` | Remove a login item or disable a launch agent |
+| `harden` | Apply security hardening preset |
+| `harden --dry-run` | Preview hardening changes without applying |
 
 ## Security Audit Scoring
 
@@ -94,12 +63,34 @@ Launch `macdog` without arguments to open the interactive dashboard:
 | D | 40-59 |
 | F | 0-39 |
 
+## TUI Dashboard
+
+Launch `macdog` without arguments to open the interactive dashboard:
+
+- **Audit tab** — Security grade with check status for SIP, Firewall, FileVault, Gatekeeper, and Remote Login
+- **Firewall tab** — Firewall state, stealth mode, block-all, and application rules
+- **Privacy tab** — TCC permissions (Camera, Microphone, Contacts, etc.) per app
+- **Login Items tab** — Login items and launch agents with their type
+- **Harden tab** — Recommended hardening actions with current vs. desired state
+
+| Key | Action |
+|-----|--------|
+| `Tab` / `l` | Next tab |
+| `Shift+Tab` / `h` | Previous tab |
+| `j` / `k` | Navigate up/down |
+| `Enter` | Apply action (Harden tab) |
+| `q` | Quit |
+
 ## Notes
 
 - Firewall enable/disable and hardening actions require `sudo`
 - Reading TCC permissions requires Full Disk Access for Terminal
 - Some checks may show "unknown" in sandboxed or restricted environments
 
+## Claude Code
+
+Available as a skill in the [macos-toolkit](https://github.com/lu-zhengda/macos-toolkit) Claude Code plugin.
+
 ## License
 
-MIT
+[MIT](LICENSE)
