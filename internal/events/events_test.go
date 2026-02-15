@@ -6,10 +6,10 @@ import (
 )
 
 func TestParseLogEvents_Auth(t *testing.T) {
-	input := `Timestamp                       Thread     Type        Activity             PID    TTL
-2024-01-15 10:30:45.123456-0800  0x1a2b  Default     com.apple.Authorization  loginwindow  User authenticated successfully
-2024-01-15 10:31:00.654321-0800  0x1a2c  Error       com.apple.Authorization  securityd  Authentication failed for user admin
-2024-01-15 10:32:00.000000-0800  0x1a2d  Default     com.apple.Authorization  sudo  sudo: user ran command as root
+	input := `Timestamp               Ty Process[PID:TID]
+2024-01-15 10:30:45.123 Df loginwindow[123:1a2b] [com.apple.Authorization:authd] User authenticated successfully
+2024-01-15 10:31:00.654 E  securityd[124:1a2c] [com.apple.Authorization:authd] Authentication failed for user admin
+2024-01-15 10:32:00.000 Df sudo[125:1a2d] [com.apple.Authorization:authd] sudo: user ran command as root
 `
 
 	events := ParseLogEvents(input, "auth")
@@ -48,10 +48,32 @@ func TestParseLogEvents_Auth(t *testing.T) {
 	}
 }
 
+func TestParseLogEvents_Auth_Succeeded(t *testing.T) {
+	input := `2024-01-15 10:30:45.123 Df authd[472:d945e6] [com.apple.Authorization:authd] Succeeded authorizing right 'com.apple.ServiceManagement.daemons.modify' by client '/usr/libexec/mdmclient' [4380]
+`
+
+	events := ParseLogEvents(input, "auth")
+
+	if len(events) != 1 {
+		t.Fatalf("expected 1 event, got %d", len(events))
+	}
+
+	e := events[0]
+	if e.Process != "authd" {
+		t.Errorf("Process = %q, want %q", e.Process, "authd")
+	}
+	if e.Severity != "info" {
+		t.Errorf("Severity = %q, want %q", e.Severity, "info")
+	}
+	if !strings.Contains(e.Message, "Succeeded") {
+		t.Errorf("Message %q does not contain %q", e.Message, "Succeeded")
+	}
+}
+
 func TestParseLogEvents_TCC(t *testing.T) {
-	input := `2024-01-15 11:00:00.000000-0800  0x2a2b  Default     com.apple.TCC  tccd  kTCCServiceCamera access denied for com.example.app
-2024-01-15 11:01:00.000000-0800  0x2a2c  Default     com.apple.TCC  tccd  kTCCServiceMicrophone access allowed for com.other.app
-2024-01-15 11:02:00.000000-0800  0x2a2d  Default     com.apple.TCC  tccd  User prompted for kTCCServiceScreenCapture
+	input := `2024-01-15 11:00:00.000 Df tccd[234:2a2b] [com.apple.TCC:access] kTCCServiceCamera access denied for com.example.app
+2024-01-15 11:01:00.000 Df tccd[235:2a2c] [com.apple.TCC:access] kTCCServiceMicrophone access allowed for com.other.app
+2024-01-15 11:02:00.000 Df tccd[236:2a2d] [com.apple.TCC:access] User prompted for kTCCServiceScreenCapture
 `
 
 	events := ParseLogEvents(input, "tcc")
@@ -87,9 +109,9 @@ func TestParseLogEvents_TCC(t *testing.T) {
 }
 
 func TestParseLogEvents_Firewall(t *testing.T) {
-	input := `2024-01-15 12:00:00.000000-0800  0x3a3b  Default     com.apple.alf  socketfilterfw  Deny connection from 192.168.1.100:443
-2024-01-15 12:01:00.000000-0800  0x3a3c  Default     com.apple.alf  socketfilterfw  Allow connection to 10.0.0.1:80
-2024-01-15 12:02:00.000000-0800  0x3a3d  Default     com.apple.alf  socketfilterfw  Block incoming connection in stealth mode
+	input := `2024-01-15 12:00:00.000 Df socketfilterfw[345:3a3b] [com.apple.alf:filter] Deny connection from 192.168.1.100:443
+2024-01-15 12:01:00.000 Df socketfilterfw[346:3a3c] [com.apple.alf:filter] Allow connection to 10.0.0.1:80
+2024-01-15 12:02:00.000 Df socketfilterfw[347:3a3d] [com.apple.alf:filter] Block incoming connection in stealth mode
 `
 
 	events := ParseLogEvents(input, "firewall")
@@ -122,9 +144,9 @@ func TestParseLogEvents_Firewall(t *testing.T) {
 }
 
 func TestParseLogEvents_Gatekeeper(t *testing.T) {
-	input := `2024-01-15 13:00:00.000000-0800  0x4a4b  Default     com.apple.syspolicy  syspolicyd  App blocked due to invalid signature
-2024-01-15 13:01:00.000000-0800  0x4a4c  Default     com.apple.syspolicy  syspolicyd  App notarized and allowed to run
-2024-01-15 13:02:00.000000-0800  0x4a4d  Default     com.apple.syspolicy  syspolicyd  File has quarantine flag, checking
+	input := `2024-01-15 13:00:00.000 Df syspolicyd[456:4a4b] [com.apple.syspolicy:exec] App blocked due to invalid signature
+2024-01-15 13:01:00.000 Df syspolicyd[457:4a4c] [com.apple.syspolicy:exec] App notarized and allowed to run
+2024-01-15 13:02:00.000 Df syspolicyd[458:4a4d] [com.apple.syspolicy:exec] File has quarantine flag, checking
 `
 
 	events := ParseLogEvents(input, "gatekeeper")
@@ -166,7 +188,7 @@ func TestParseLogEvents_EmptyInput(t *testing.T) {
 func TestParseLogEvents_MalformedLines(t *testing.T) {
 	input := `this is not a valid log line
 another bad line
-Timestamp                       Thread     Type
+Timestamp               Ty Process[PID:TID]
 --- just a header ---
 `
 
@@ -234,6 +256,7 @@ func TestAssignSeverity(t *testing.T) {
 		{"auth denied", "auth", "access denied by policy", "critical"},
 		{"auth sudo", "auth", "sudo: user ran command", "warning"},
 		{"auth success", "auth", "User authenticated OK", "info"},
+		{"auth succeeded", "auth", "Succeeded authorizing right", "info"},
 		{"auth other", "auth", "some other auth message", "info"},
 
 		// tcc events
@@ -332,6 +355,16 @@ func TestNormalizeTimestamp(t *testing.T) {
 			"2024-01-15 18:30:45",
 		},
 		{
+			"compact no timezone with milliseconds",
+			"2024-01-15 10:30:45.123",
+			"2024-01-15 10:30:45",
+		},
+		{
+			"compact no timezone no fractional",
+			"2024-01-15 10:30:45",
+			"2024-01-15 10:30:45",
+		},
+		{
 			"unparseable returns as-is",
 			"some random string",
 			"some random string",
@@ -428,8 +461,8 @@ func TestFetchEventsWithRunner_InvalidDuration(t *testing.T) {
 }
 
 func TestFetchEventsWithRunner_Auth(t *testing.T) {
-	mockOutput := `2024-01-15 10:30:45.123456-0800  0x1a2b  Default     com.apple.Authorization  loginwindow  User authenticated successfully
-2024-01-15 10:31:00.654321-0800  0x1a2c  Error       com.apple.Authorization  securityd  Authentication failed for user admin
+	mockOutput := `2024-01-15 10:30:45.123 Df loginwindow[123:1a2b] [com.apple.Authorization:authd] User authenticated successfully
+2024-01-15 10:31:00.654 E  securityd[124:1a2c] [com.apple.Authorization:authd] Authentication failed for user admin
 `
 
 	runner := func(name string, args ...string) ([]byte, error) {
@@ -482,10 +515,10 @@ func TestFetchAllEventsWithRunner(t *testing.T) {
 		// Return different mock data depending on the predicate or command.
 		for _, arg := range args {
 			if strings.Contains(arg, "Authorization") {
-				return []byte("2024-01-15 10:30:45.123456-0800  0x1a2b  Default     com.apple.Authorization  loginwindow  User authenticated\n"), nil
+				return []byte("2024-01-15 10:30:45.123 Df loginwindow[123:1a2b] [com.apple.Authorization:authd] User authenticated\n"), nil
 			}
 			if strings.Contains(arg, "TCC") {
-				return []byte("2024-01-15 11:00:00.000000-0800  0x2a2b  Default     com.apple.TCC  tccd  access denied\n"), nil
+				return []byte("2024-01-15 11:00:00.000 Df tccd[234:2a2b] [com.apple.TCC:access] access denied\n"), nil
 			}
 		}
 		// For install (cat) and others, return empty.
