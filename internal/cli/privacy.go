@@ -1,4 +1,4 @@
-package cmd
+package cli
 
 import (
 	"fmt"
@@ -17,6 +17,10 @@ var privacyCmd = &cobra.Command{
 		perms, err := privacy.ListPermissions()
 		if err != nil {
 			return fmt.Errorf("failed to list permissions: %w", err)
+		}
+
+		if jsonFlag {
+			return printJSON(perms)
 		}
 
 		if len(perms) == 0 {

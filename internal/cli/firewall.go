@@ -1,4 +1,4 @@
-package cmd
+package cli
 
 import (
 	"fmt"
@@ -17,6 +17,10 @@ var firewallCmd = &cobra.Command{
 		status, err := firewall.GetStatus()
 		if err != nil {
 			return fmt.Errorf("failed to get firewall status: %w", err)
+		}
+
+		if jsonFlag {
+			return printJSON(status)
 		}
 
 		fmt.Println()

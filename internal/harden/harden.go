@@ -10,11 +10,11 @@ const socketFilterFW = "/usr/libexec/ApplicationFirewall/socketfilterfw"
 
 // Action represents a single hardening action.
 type Action struct {
-	Name         string
-	Description  string
-	CurrentState string
-	DesiredState string
-	Apply        func() error
+	Name         string       `json:"name"`
+	Description  string       `json:"description"`
+	CurrentState string       `json:"current_state"`
+	DesiredState string       `json:"desired_state"`
+	Apply        func() error `json:"-"`
 }
 
 // Plan returns a list of hardening actions showing current vs. desired state.
