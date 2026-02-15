@@ -4,3 +4,6 @@ dist/
 completions/
 .DS_Store
 coverage.out
+
+# Design plans
+docs/plans/
