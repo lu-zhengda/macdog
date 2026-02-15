@@ -1,0 +1,114 @@
+package cmd
+
+import (
+	"fmt"
+	"os"
+	"text/tabwriter"
+
+	"github.com/spf13/cobra"
+	"github.com/zhengda-lu/macdog/internal/firewall"
+)
+
+var firewallCmd = &cobra.Command{
+	Use:   "firewall",
+	Short: "Show firewall status and rules",
+	Long:  "Display the current firewall status, stealth mode, block-all state, and application rules.",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		status, err := firewall.GetStatus()
+		if err != nil {
+			return fmt.Errorf("failed to get firewall status: %w", err)
+		}
+
+		fmt.Println()
+		fmt.Printf("Firewall:     %s\n", colorBool(status.Enabled, "on", "off"))
+		fmt.Printf("Stealth Mode: %s\n", colorBool(status.StealthMode, "on", "off"))
+		fmt.Printf("Block All:    %s\n", colorBool(status.BlockAll, "on", "off"))
+		fmt.Println()
+
+		if len(status.Rules) == 0 {
+			fmt.Println("No application rules configured.")
+			return nil
+		}
+
+		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+		fmt.Fprintf(w, "APP\tPATH\tSTATUS\n")
+		fmt.Fprintf(w, "---\t----\t------\n")
+		for _, r := range status.Rules {
+			status := red("blocked")
+			if r.Allowed {
+				status = green("allowed")
+			}
+			fmt.Fprintf(w, "%s\t%s\t%s\n", r.Name, r.Path, status)
+		}
+		w.Flush()
+		fmt.Println()
+
+		return nil
+	},
+}
+
+var firewallEnableCmd = &cobra.Command{
+	Use:   "enable",
+	Short: "Enable the firewall",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := firewall.Enable(); err != nil {
+			return err
+		}
+		fmt.Println(green("Firewall enabled."))
+		return nil
+	},
+}
+
+var firewallDisableCmd = &cobra.Command{
+	Use:   "disable",
+	Short: "Disable the firewall",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := firewall.Disable(); err != nil {
+			return err
+		}
+		fmt.Println(red("Firewall disabled."))
+		return nil
+	},
+}
+
+var firewallAllowCmd = &cobra.Command{
+	Use:   "allow <app-path>",
+	Short: "Allow an application through the firewall",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := firewall.AllowApp(args[0]); err != nil {
+			return err
+		}
+		fmt.Printf("%s is now %s through the firewall.\n", args[0], green("allowed"))
+		return nil
+	},
+}
+
+var firewallBlockCmd = &cobra.Command{
+	Use:   "block <app-path>",
+	Short: "Block an application in the firewall",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := firewall.BlockApp(args[0]); err != nil {
+			return err
+		}
+		fmt.Printf("%s is now %s in the firewall.\n", args[0], red("blocked"))
+		return nil
+	},
+}
+
+func init() {
+	rootCmd.AddCommand(firewallCmd)
+	firewallCmd.AddCommand(firewallEnableCmd)
+	firewallCmd.AddCommand(firewallDisableCmd)
+	firewallCmd.AddCommand(firewallAllowCmd)
+	firewallCmd.AddCommand(firewallBlockCmd)
+}
+
+// colorBool formats a boolean as a colored on/off string.
+func colorBool(b bool, onStr, offStr string) string {
+	if b {
+		return green(onStr)
+	}
+	return red(offStr)
+}
