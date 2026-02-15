@@ -1,5 +1,6 @@
 # Root binary only (not cmd/macdog/ directory)
 /macdog
 dist/
+completions/
 .DS_Store
 coverage.out
