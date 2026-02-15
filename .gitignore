@@ -5,6 +5,3 @@ completions/
 docs/plans/
 .DS_Store
 coverage.out
-
-# Design plans
-docs/plans/
