@@ -26,9 +26,9 @@ jobs:
       - name: Generate completions
         run: |
           mkdir -p completions
-          go run . --generate-completion bash > completions/macdog.bash
-          go run . --generate-completion zsh > completions/macdog.zsh
-          go run . --generate-completion fish > completions/macdog.fish
+          go run ./cmd/macdog --generate-completion bash > completions/macdog.bash
+          go run ./cmd/macdog --generate-completion zsh > completions/macdog.zsh
+          go run ./cmd/macdog --generate-completion fish > completions/macdog.fish
 
       - uses: goreleaser/goreleaser-action@v6
         with:
