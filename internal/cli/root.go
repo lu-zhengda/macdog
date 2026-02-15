@@ -1,4 +1,4 @@
-package cmd
+package cli
 
 import (
 	"fmt"
@@ -51,4 +51,5 @@ func init() {
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 	rootCmd.Flags().String("generate-completion", "", "Generate shell completion (bash, zsh, fish)")
 	rootCmd.Flags().MarkHidden("generate-completion")
+	rootCmd.PersistentFlags().BoolVar(&jsonFlag, "json", false, "Output in JSON format")
 }

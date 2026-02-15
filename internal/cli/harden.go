@@ -1,4 +1,4 @@
-package cmd
+package cli
 
 import (
 	"fmt"
@@ -19,6 +19,10 @@ var hardenCmd = &cobra.Command{
 		actions, err := harden.Plan()
 		if err != nil {
 			return fmt.Errorf("failed to create hardening plan: %w", err)
+		}
+
+		if jsonFlag {
+			return printJSON(actions)
 		}
 
 		fmt.Println()

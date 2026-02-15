@@ -1,4 +1,4 @@
-package cmd
+package cli
 
 import (
 	"fmt"
@@ -9,6 +9,12 @@ import (
 	"github.com/lu-zhengda/macdog/internal/audit"
 )
 
+type auditResult struct {
+	audit.Report
+	Score int    `json:"score"`
+	Grade string `json:"grade"`
+}
+
 var auditCmd = &cobra.Command{
 	Use:   "audit",
 	Short: "Run a full security audit",
@@ -17,6 +23,14 @@ var auditCmd = &cobra.Command{
 		report, err := audit.Full()
 		if err != nil {
 			return fmt.Errorf("failed to run audit: %w", err)
+		}
+
+		if jsonFlag {
+			return printJSON(auditResult{
+				Report: *report,
+				Score:  report.Score(),
+				Grade:  report.Grade(),
+			})
 		}
 
 		grade := report.Grade()

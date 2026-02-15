@@ -10,9 +10,9 @@ import (
 
 // LoginItem represents a startup/login item.
 type LoginItem struct {
-	Name string
-	Path string
-	Kind string // "LaunchAgent", "LoginItem", "App"
+	Name string `json:"name"`
+	Path string `json:"path"`
+	Kind string `json:"kind"` // "LaunchAgent", "LoginItem", "App"
 }
 
 // ListItems returns all login items from multiple sources:

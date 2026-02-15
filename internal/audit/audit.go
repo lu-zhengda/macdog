@@ -7,11 +7,11 @@ import (
 
 // Report holds the results of a security audit.
 type Report struct {
-	SIP         string // "enabled" or "disabled"
-	Firewall    string // "on" or "off"
-	FileVault   string // "on" or "off"
-	Gatekeeper  string // "enabled" or "disabled"
-	RemoteLogin string // "on" or "off"
+	SIP         string `json:"sip"`          // "enabled" or "disabled"
+	Firewall    string `json:"firewall"`     // "on" or "off"
+	FileVault   string `json:"file_vault"`   // "on" or "off"
+	Gatekeeper  string `json:"gatekeeper"`   // "enabled" or "disabled"
+	RemoteLogin string `json:"remote_login"` // "on" or "off"
 }
 
 // Full runs a full security audit and returns a Report.

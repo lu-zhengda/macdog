@@ -1,4 +1,4 @@
-package cmd
+package cli
 
 import (
 	"fmt"
@@ -17,6 +17,10 @@ var loginCmd = &cobra.Command{
 		items, err := login.ListItems()
 		if err != nil {
 			return fmt.Errorf("failed to list login items: %w", err)
+		}
+
+		if jsonFlag {
+			return printJSON(items)
 		}
 
 		if len(items) == 0 {

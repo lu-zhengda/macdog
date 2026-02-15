@@ -10,11 +10,11 @@ import (
 
 // Permission represents a TCC privacy permission entry.
 type Permission struct {
-	Service      string
-	App          string
-	BundleID     string
-	Allowed      bool
-	LastModified string
+	Service      string `json:"service"`
+	App          string `json:"app"`
+	BundleID     string `json:"bundle_id"`
+	Allowed      bool   `json:"allowed"`
+	LastModified string `json:"last_modified"`
 }
 
 // tccServiceMap maps TCC internal names to human-readable names.

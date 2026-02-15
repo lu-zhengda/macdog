@@ -11,17 +11,17 @@ const socketFilterFW = "/usr/libexec/ApplicationFirewall/socketfilterfw"
 
 // Status represents the current firewall state.
 type Status struct {
-	Enabled     bool
-	StealthMode bool
-	BlockAll    bool
-	Rules       []Rule
+	Enabled     bool   `json:"enabled"`
+	StealthMode bool   `json:"stealth_mode"`
+	BlockAll    bool   `json:"block_all"`
+	Rules       []Rule `json:"rules"`
 }
 
 // Rule represents a firewall application rule.
 type Rule struct {
-	Name    string
-	Path    string
-	Allowed bool
+	Name    string `json:"name"`
+	Path    string `json:"path"`
+	Allowed bool   `json:"allowed"`
 }
 
 // GetStatus returns the current firewall status.
