@@ -58,6 +58,9 @@ var firewallEnableCmd = &cobra.Command{
 		if err := firewall.Enable(); err != nil {
 			return err
 		}
+		if jsonFlag {
+			return printJSON(jsonAction{OK: true, Action: "enable", Target: "firewall"})
+		}
 		fmt.Println(green("Firewall enabled."))
 		return nil
 	},
@@ -69,6 +72,9 @@ var firewallDisableCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := firewall.Disable(); err != nil {
 			return err
+		}
+		if jsonFlag {
+			return printJSON(jsonAction{OK: true, Action: "disable", Target: "firewall"})
 		}
 		fmt.Println(red("Firewall disabled."))
 		return nil
@@ -83,6 +89,9 @@ var firewallAllowCmd = &cobra.Command{
 		if err := firewall.AllowApp(args[0]); err != nil {
 			return err
 		}
+		if jsonFlag {
+			return printJSON(jsonAction{OK: true, Action: "allow", Target: args[0]})
+		}
 		fmt.Printf("%s is now %s through the firewall.\n", args[0], green("allowed"))
 		return nil
 	},
@@ -95,6 +104,9 @@ var firewallBlockCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := firewall.BlockApp(args[0]); err != nil {
 			return err
+		}
+		if jsonFlag {
+			return printJSON(jsonAction{OK: true, Action: "block", Target: args[0]})
 		}
 		fmt.Printf("%s is now %s in the firewall.\n", args[0], red("blocked"))
 		return nil
@@ -136,6 +148,9 @@ var firewallImportCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := firewall.ImportRules(args[0]); err != nil {
 			return fmt.Errorf("failed to import firewall rules: %w", err)
+		}
+		if jsonFlag {
+			return printJSON(jsonAction{OK: true, Action: "import", Target: args[0]})
 		}
 		fmt.Printf("Firewall rules imported from %s\n", green(args[0]))
 		return nil

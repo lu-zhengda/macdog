@@ -58,6 +58,9 @@ var privacyRevokeCmd = &cobra.Command{
 		if err := privacy.RevokePermission(service, bundleID); err != nil {
 			return err
 		}
+		if jsonFlag {
+			return printJSON(jsonAction{OK: true, Action: "revoke", Target: service + "/" + bundleID})
+		}
 		fmt.Printf("Revoked %s permission for %s.\n", service, bundleID)
 		return nil
 	},

@@ -56,6 +56,9 @@ var loginRemoveCmd = &cobra.Command{
 		if err := login.RemoveItem(name); err != nil {
 			return err
 		}
+		if jsonFlag {
+			return printJSON(jsonAction{OK: true, Action: "remove", Target: name})
+		}
 		fmt.Printf("Removed login item %q.\n", name)
 		return nil
 	},

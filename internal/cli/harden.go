@@ -21,8 +21,37 @@ var hardenCmd = &cobra.Command{
 			return fmt.Errorf("failed to create hardening plan: %w", err)
 		}
 
+		var needsChange []harden.Action
+		for _, a := range actions {
+			if a.CurrentState != a.DesiredState {
+				needsChange = append(needsChange, a)
+			}
+		}
+
 		if jsonFlag {
-			return printJSON(actions)
+			result := jsonHardenResult{
+				DryRun:  dryRun,
+				Actions: actions,
+			}
+
+			if dryRun || len(needsChange) == 0 {
+				result.Applied = 0
+				return printJSON(result)
+			}
+
+			// Apply changes and record per-action results.
+			var results []jsonHardenApplied
+			for _, a := range needsChange {
+				r := jsonHardenApplied{Name: a.Name, Status: "applied"}
+				if err := a.Apply(); err != nil {
+					r.Status = "failed"
+					r.Error = err.Error()
+				}
+				results = append(results, r)
+			}
+			result.Applied = len(results)
+			result.Results = results
+			return printJSON(result)
 		}
 
 		fmt.Println()
@@ -30,12 +59,10 @@ var hardenCmd = &cobra.Command{
 		fmt.Fprintf(w, "ACTION\tCURRENT\tDESIRED\tCHANGE\n")
 		fmt.Fprintf(w, "------\t-------\t-------\t------\n")
 
-		var needsChange []harden.Action
 		for _, a := range actions {
 			change := green("OK")
 			if a.CurrentState != a.DesiredState {
 				change = yellow("CHANGE")
-				needsChange = append(needsChange, a)
 			}
 			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", a.Name, a.CurrentState, a.DesiredState, change)
 		}
