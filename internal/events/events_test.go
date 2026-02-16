@@ -3,6 +3,7 @@ package events
 import (
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestParseLogEvents_Auth(t *testing.T) {
@@ -563,6 +564,140 @@ func TestDurationCutoff(t *testing.T) {
 			_, err := durationCutoff(tt.input)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("durationCutoff(%q) error = %v, wantErr %v", tt.input, err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestDeduplicateEvents(t *testing.T) {
+	window := 30 * time.Second
+
+	tests := []struct {
+		name       string
+		events     []SecurityEvent
+		wantLen    int
+		wantCounts []int
+	}{
+		{
+			name:       "empty input",
+			events:     nil,
+			wantLen:    0,
+			wantCounts: nil,
+		},
+		{
+			name: "single event",
+			events: []SecurityEvent{
+				{Timestamp: "2024-01-15 10:00:00", Type: "tcc", Severity: "info", Message: "allowed"},
+			},
+			wantLen:    1,
+			wantCounts: []int{1},
+		},
+		{
+			name: "3 consecutive same type and severity within window",
+			events: []SecurityEvent{
+				{Timestamp: "2024-01-15 10:00:00", Type: "tcc", Severity: "info", Message: "msg1"},
+				{Timestamp: "2024-01-15 10:00:10", Type: "tcc", Severity: "info", Message: "msg2"},
+				{Timestamp: "2024-01-15 10:00:20", Type: "tcc", Severity: "info", Message: "msg3"},
+			},
+			wantLen:    1,
+			wantCounts: []int{3},
+		},
+		{
+			name: "same type but different severity",
+			events: []SecurityEvent{
+				{Timestamp: "2024-01-15 10:00:00", Type: "tcc", Severity: "info", Message: "allowed"},
+				{Timestamp: "2024-01-15 10:00:10", Type: "tcc", Severity: "critical", Message: "denied"},
+			},
+			wantLen:    2,
+			wantCounts: []int{1, 1},
+		},
+		{
+			name: "same type and severity but outside window",
+			events: []SecurityEvent{
+				{Timestamp: "2024-01-15 10:00:00", Type: "tcc", Severity: "info", Message: "msg1"},
+				{Timestamp: "2024-01-15 10:01:00", Type: "tcc", Severity: "info", Message: "msg2"},
+			},
+			wantLen:    2,
+			wantCounts: []int{1, 1},
+		},
+		{
+			name: "mixed types interleaved",
+			events: []SecurityEvent{
+				{Timestamp: "2024-01-15 10:00:00", Type: "tcc", Severity: "info", Message: "tcc1"},
+				{Timestamp: "2024-01-15 10:00:05", Type: "tcc", Severity: "info", Message: "tcc2"},
+				{Timestamp: "2024-01-15 10:00:10", Type: "auth", Severity: "info", Message: "auth1"},
+				{Timestamp: "2024-01-15 10:00:15", Type: "auth", Severity: "info", Message: "auth2"},
+				{Timestamp: "2024-01-15 10:00:20", Type: "auth", Severity: "info", Message: "auth3"},
+				{Timestamp: "2024-01-15 10:00:25", Type: "tcc", Severity: "info", Message: "tcc3"},
+			},
+			wantLen:    3,
+			wantCounts: []int{2, 3, 1},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := DeduplicateEvents(tt.events, window)
+			if len(got) != tt.wantLen {
+				t.Fatalf("DeduplicateEvents() returned %d events, want %d", len(got), tt.wantLen)
+			}
+			for i, wantCount := range tt.wantCounts {
+				if got[i].Count != wantCount {
+					t.Errorf("event[%d].Count = %d, want %d", i, got[i].Count, wantCount)
+				}
+			}
+		})
+	}
+}
+
+func TestFilterBySeverity(t *testing.T) {
+	events := []SecurityEvent{
+		{Type: "tcc", Severity: "info", Message: "allowed"},
+		{Type: "tcc", Severity: "warning", Message: "prompted"},
+		{Type: "tcc", Severity: "critical", Message: "denied"},
+		{Type: "auth", Severity: "info", Message: "success"},
+		{Type: "auth", Severity: "warning", Message: "sudo"},
+	}
+
+	tests := []struct {
+		name        string
+		minSeverity string
+		wantLen     int
+	}{
+		{"empty shows all", "", 5},
+		{"info shows all", "info", 5},
+		{"warning filters info", "warning", 3},
+		{"critical filters info and warning", "critical", 1},
+		{"invalid shows all", "unknown", 5},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := FilterBySeverity(events, tt.minSeverity)
+			if len(got) != tt.wantLen {
+				t.Errorf("FilterBySeverity(%q) returned %d events, want %d", tt.minSeverity, len(got), tt.wantLen)
+			}
+		})
+	}
+}
+
+func TestSeverityLevel(t *testing.T) {
+	tests := []struct {
+		severity string
+		want     int
+	}{
+		{"info", 0},
+		{"warning", 1},
+		{"critical", 2},
+		{"unknown", -1},
+		{"", -1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.severity, func(t *testing.T) {
+			got := SeverityLevel(tt.severity)
+			if got != tt.want {
+				t.Errorf("SeverityLevel(%q) = %d, want %d", tt.severity, got, tt.want)
 			}
 		})
 	}
