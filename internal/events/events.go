@@ -17,6 +17,7 @@ type SecurityEvent struct {
 	Severity  string `json:"severity"` // info, warning, critical
 	Process   string `json:"process"`
 	Message   string `json:"message"`
+	Count     int    `json:"count,omitempty"`
 }
 
 // eventTypeDef defines a log source and its parsing rules.
@@ -409,4 +410,81 @@ func truncateMessage(msg string, maxLen int) string {
 		return msg
 	}
 	return msg[:maxLen-3] + "..."
+}
+
+// DeduplicateEvents collapses consecutive events of the same type and severity
+// within a time window into a single event with a count.
+func DeduplicateEvents(events []SecurityEvent, window time.Duration) []SecurityEvent {
+	if len(events) == 0 {
+		return nil
+	}
+
+	const tsLayout = "2006-01-02 15:04:05"
+
+	var result []SecurityEvent
+	current := events[0]
+	current.Count = 1
+	groupStart, _ := time.Parse(tsLayout, current.Timestamp)
+
+	for i := 1; i < len(events); i++ {
+		e := events[i]
+		ts, parseErr := time.Parse(tsLayout, e.Timestamp)
+
+		sameGroup := e.Type == current.Type && e.Severity == current.Severity
+		if sameGroup && parseErr == nil && !groupStart.IsZero() {
+			sameGroup = ts.Sub(groupStart) <= window
+		}
+
+		if sameGroup {
+			current.Count++
+		} else {
+			result = append(result, current)
+			current = e
+			current.Count = 1
+			if parseErr == nil {
+				groupStart = ts
+			} else {
+				groupStart = time.Time{}
+			}
+		}
+	}
+	result = append(result, current)
+
+	return result
+}
+
+// SeverityLevel returns the numeric level for a severity string.
+// info=0, warning=1, critical=2. Unknown severities return -1.
+func SeverityLevel(severity string) int {
+	switch severity {
+	case "info":
+		return 0
+	case "warning":
+		return 1
+	case "critical":
+		return 2
+	default:
+		return -1
+	}
+}
+
+// FilterBySeverity returns events at or above the given minimum severity level.
+// An empty minSeverity returns all events unchanged.
+func FilterBySeverity(events []SecurityEvent, minSeverity string) []SecurityEvent {
+	if minSeverity == "" {
+		return events
+	}
+
+	minLevel := SeverityLevel(minSeverity)
+	if minLevel < 0 {
+		return events
+	}
+
+	var filtered []SecurityEvent
+	for _, e := range events {
+		if SeverityLevel(e.Severity) >= minLevel {
+			filtered = append(filtered, e)
+		}
+	}
+	return filtered
 }
