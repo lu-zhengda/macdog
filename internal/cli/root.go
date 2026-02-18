@@ -52,4 +52,9 @@ func init() {
 	rootCmd.Flags().String("generate-completion", "", "Generate shell completion (bash, zsh, fish)")
 	rootCmd.Flags().MarkHidden("generate-completion")
 	rootCmd.PersistentFlags().BoolVar(&jsonFlag, "json", false, "Output in JSON format")
+
+	// Silence cobra's built-in error/usage printing so that main.go
+	// can handle all output (including ExitCoder sentinel values).
+	rootCmd.SilenceErrors = true
+	rootCmd.SilenceUsage = true
 }

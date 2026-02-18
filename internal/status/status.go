@@ -13,6 +13,10 @@ import (
 	"github.com/lu-zhengda/macdog/internal/privacy"
 )
 
+// loginTimeout is the maximum time to wait for osascript-based login item listing.
+// osascript can block indefinitely in headless / automation environments.
+const loginTimeout = 5 * time.Second
+
 // Overall status levels returned by Report.Overall.
 const (
 	OverallOK       = "ok"
@@ -107,11 +111,26 @@ func Collect() (*Report, error) {
 	}
 
 	// ── Login items (filesystem scan + osascript) ────────────────────────
-	items, loginErr := login.ListItems()
-	if loginErr != nil {
-		r.LoginItems = LoginInfo{Error: loginErr.Error()}
-	} else {
-		r.LoginItems = LoginInfo{Count: len(items)}
+	// osascript can hang in headless/automation environments, so we run it
+	// in a goroutine with a bounded timeout.
+	type loginResult struct {
+		items []login.LoginItem
+		err   error
+	}
+	loginCh := make(chan loginResult, 1)
+	go func() {
+		items, err := login.ListItems()
+		loginCh <- loginResult{items, err}
+	}()
+	select {
+	case lr := <-loginCh:
+		if lr.err != nil {
+			r.LoginItems = LoginInfo{Error: lr.err.Error()}
+		} else {
+			r.LoginItems = LoginInfo{Count: len(lr.items)}
+		}
+	case <-time.After(loginTimeout):
+		r.LoginItems = LoginInfo{Error: "timed out (osascript unavailable in this environment)"}
 	}
 
 	// ── Privacy / TCC (best-effort — requires Full Disk Access) ──────────

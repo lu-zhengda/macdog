@@ -10,13 +10,15 @@ import (
 
 func main() {
 	if err := cli.Execute(); err != nil {
-		// exitCoder lets commands communicate a specific exit code without
-		// printing an error message (e.g., `macdog status` exits 1 on warning).
+		// ExitCoder: a command completed successfully but wants a specific
+		// exit code (e.g., `macdog status` exits 1=warning, 2=critical).
+		// Print nothing — the command already displayed its output.
 		var ec cli.ExitCoder
 		if errors.As(err, &ec) {
 			os.Exit(ec.ExitCode())
 		}
-		fmt.Fprintln(os.Stderr, err)
+		// Real error: print and exit 1.
+		fmt.Fprintln(os.Stderr, "Error:", err)
 		os.Exit(1)
 	}
 }
