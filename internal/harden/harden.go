@@ -2,6 +2,7 @@ package harden
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 )
@@ -92,12 +93,16 @@ func Apply(actions []Action) error {
 	return nil
 }
 
-// sudoRun executes a command with sudo.
+// sudoRun executes a command with sudo, connecting stdin/stdout/stderr
+// to allow interactive password prompts.
 func sudoRun(name string, args ...string) error {
 	cmdArgs := append([]string{name}, args...)
-	out, err := exec.Command("sudo", cmdArgs...).CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("%s (requires sudo): %s: %w", name, strings.TrimSpace(string(out)), err)
+	cmd := exec.Command("sudo", cmdArgs...)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("%s (requires sudo): %w", name, err)
 	}
 	return nil
 }
