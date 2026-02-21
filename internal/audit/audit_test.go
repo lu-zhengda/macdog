@@ -1,6 +1,10 @@
 package audit
 
 import (
+	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -297,6 +301,47 @@ func TestParseRemoteLogin(t *testing.T) {
 				t.Errorf("parseRemoteLogin(%q) = %q, want %q", tt.output, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestSystemBinaryPaths(t *testing.T) {
+	tests := map[string]string{
+		"spctl":       spctlBin,
+		"systemsetup": systemsetupBin,
+		"launchctl":   launchctlBin,
+		"sudo":        sudoBin,
+	}
+
+	for name, p := range tests {
+		if !strings.HasPrefix(p, "/") {
+			t.Errorf("%s path = %q, want absolute path", name, p)
+		}
+	}
+
+	if spctlBin != "/usr/sbin/spctl" {
+		t.Errorf("spctlBin = %q, want %q", spctlBin, "/usr/sbin/spctl")
+	}
+	if systemsetupBin != "/usr/sbin/systemsetup" {
+		t.Errorf("systemsetupBin = %q, want %q", systemsetupBin, "/usr/sbin/systemsetup")
+	}
+}
+
+func TestRunAndParseWithAbsolutePathAndEmptyPATH(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("requires POSIX shell script execution")
+	}
+
+	mockCmd := filepath.Join(t.TempDir(), "spctl-mock")
+	script := "#!/bin/sh\necho assessments enabled\n"
+	if err := os.WriteFile(mockCmd, []byte(script), 0o755); err != nil {
+		t.Fatalf("failed to write mock command: %v", err)
+	}
+
+	t.Setenv("PATH", "")
+
+	got := runAndParse(mockCmd, nil, parseGatekeeper)
+	if got != "enabled" {
+		t.Errorf("runAndParse(%q) = %q, want %q", mockCmd, got, "enabled")
 	}
 }
 

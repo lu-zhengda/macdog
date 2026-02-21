@@ -22,8 +22,8 @@ func Full() (*Report, error) {
 	r.SIP = runAndParse("csrutil", []string{"status"}, parseCSRUtil)
 	r.Firewall = runAndParse("/usr/libexec/ApplicationFirewall/socketfilterfw", []string{"--getglobalstate"}, parseFirewall)
 	r.FileVault = runAndParse("fdesetup", []string{"status"}, parseFileVault)
-	r.Gatekeeper = runAndParse("spctl", []string{"--status"}, parseGatekeeper)
-	r.RemoteLogin = runAndParse("systemsetup", []string{"-getremotelogin"}, parseRemoteLogin)
+	r.Gatekeeper = runAndParse(spctlBin, []string{"--status"}, parseGatekeeper)
+	r.RemoteLogin = runAndParse(systemsetupBin, []string{"-getremotelogin"}, parseRemoteLogin)
 	// Fallback: if systemsetup requires admin, check via launchctl.
 	if r.RemoteLogin == "unknown" {
 		r.RemoteLogin = probeRemoteLoginFallback()
@@ -154,11 +154,11 @@ func parseRemoteLogin(output string) string {
 
 // FixResult describes a single fix that was applied (or skipped).
 type FixResult struct {
-	Check   string `json:"check"`
-	Status  string `json:"status"`  // "fixed", "skipped", "failed"
-	Reason  string `json:"reason"`  // why it was skipped or error message
-	Before  string `json:"before"`  // value before fix
-	After   string `json:"after"`   // value after fix (empty if skipped/failed)
+	Check  string `json:"check"`
+	Status string `json:"status"` // "fixed", "skipped", "failed"
+	Reason string `json:"reason"` // why it was skipped or error message
+	Before string `json:"before"` // value before fix
+	After  string `json:"after"`  // value after fix (empty if skipped/failed)
 }
 
 // FixReport holds the results of an auto-fix run.
@@ -168,7 +168,13 @@ type FixReport struct {
 	After   Report      `json:"after"`
 }
 
-const socketFilterFW = "/usr/libexec/ApplicationFirewall/socketfilterfw"
+const (
+	socketFilterFW = "/usr/libexec/ApplicationFirewall/socketfilterfw"
+	spctlBin       = "/usr/sbin/spctl"
+	systemsetupBin = "/usr/sbin/systemsetup"
+	launchctlBin   = "/bin/launchctl"
+	sudoBin        = "/usr/bin/sudo"
+)
 
 // Fix runs a full audit, then auto-fixes checks that are safe to fix
 // programmatically. It re-runs the audit after applying fixes and returns
@@ -193,7 +199,7 @@ func Fix() (*FixReport, error) {
 
 	// Firewall: safe to enable via socketfilterfw.
 	if before.Firewall != "on" {
-		out, fErr := exec.Command("sudo", socketFilterFW, "--setglobalstate", "on").CombinedOutput()
+		out, fErr := exec.Command(sudoBin, socketFilterFW, "--setglobalstate", "on").CombinedOutput()
 		if fErr != nil {
 			fr.Results = append(fr.Results, FixResult{
 				Check:  "Firewall",
@@ -223,7 +229,7 @@ func Fix() (*FixReport, error) {
 
 	// Gatekeeper: safe to enable via spctl.
 	if before.Gatekeeper != "enabled" {
-		out, gErr := exec.Command("sudo", "spctl", "--master-enable").CombinedOutput()
+		out, gErr := exec.Command(sudoBin, spctlBin, "--master-enable").CombinedOutput()
 		if gErr != nil {
 			fr.Results = append(fr.Results, FixResult{
 				Check:  "Gatekeeper",
@@ -243,7 +249,7 @@ func Fix() (*FixReport, error) {
 
 	// Remote Login: safe to disable via systemsetup.
 	if before.RemoteLogin != "off" {
-		out, rErr := exec.Command("sudo", "systemsetup", "-setremotelogin", "off").CombinedOutput()
+		out, rErr := exec.Command(sudoBin, systemsetupBin, "-setremotelogin", "off").CombinedOutput()
 		if rErr != nil {
 			fr.Results = append(fr.Results, FixResult{
 				Check:  "Remote Login",
@@ -273,7 +279,7 @@ func Fix() (*FixReport, error) {
 
 // probeRemoteLoginFallback checks remote login state by looking for sshd via launchctl.
 func probeRemoteLoginFallback() string {
-	out, err := exec.Command("launchctl", "list").CombinedOutput()
+	out, err := exec.Command(launchctlBin, "list").CombinedOutput()
 	if err != nil {
 		return "unknown"
 	}
